@@ -36,6 +36,12 @@ class ProfileViewModel(
     var snackbarMessage by mutableStateOf<String?>(null)
         private set
 
+    val totalLikes: Int get() = myPosts.sumOf { it.likes }
+
+    val postCount: Int get() = myPosts.size
+
+    val favoriteCount: Int get() = myFavorites.size
+
     init {
         viewModelScope.launch {
             isLoading = true

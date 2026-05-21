@@ -76,14 +76,15 @@ class PostDetailViewModel(
 
     fun addComment(content: String) {
         viewModelScope.launch {
-            isLoading = true
             try {
                 val author = userRepository.getCurrentUser().firstOrNull()?.nickname ?: "匿名用户"
                 postRepository.addComment(postId, content, author)
-                    .onSuccess {
+                    .onSuccess { newComment ->
                         snackbarMessage = "评论成功"
+                        comments = listOf(newComment) + comments
                         try {
-                            comments = postRepository.getComments(postId).firstOrNull().orEmpty()
+                            comments = postRepository.getComments(postId)
+                                .firstOrNull()?.toList().orEmpty()
                         } catch (_: Exception) {
                         }
                     }
@@ -92,22 +93,27 @@ class PostDetailViewModel(
                     }
             } catch (e: Exception) {
                 snackbarMessage = "操作失败: ${e.message}"
-            } finally {
-                isLoading = false
             }
         }
     }
 
     fun addReply(commentId: String, content: String) {
         viewModelScope.launch {
-            isLoading = true
             try {
                 val author = userRepository.getCurrentUser().firstOrNull()?.nickname ?: "匿名用户"
                 postRepository.addReply(commentId, content, author)
-                    .onSuccess {
+                    .onSuccess { reply ->
                         snackbarMessage = "回复成功"
+                        comments = comments.map { comment ->
+                            if (comment.id == commentId) {
+                                comment.copy(replies = listOf(reply) + comment.replies)
+                            } else {
+                                comment
+                            }
+                        }
                         try {
-                            comments = postRepository.getComments(postId).firstOrNull().orEmpty()
+                            comments = postRepository.getComments(postId)
+                                .firstOrNull()?.toList().orEmpty()
                         } catch (_: Exception) {
                         }
                     }
@@ -116,8 +122,6 @@ class PostDetailViewModel(
                     }
             } catch (e: Exception) {
                 snackbarMessage = "操作失败: ${e.message}"
-            } finally {
-                isLoading = false
             }
         }
     }
