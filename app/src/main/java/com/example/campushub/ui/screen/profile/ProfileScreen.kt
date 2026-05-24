@@ -4,8 +4,10 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,7 +28,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CameraAlt
@@ -43,7 +44,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
@@ -52,8 +52,6 @@ import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -78,7 +76,6 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.campushub.data.model.Post
 import com.example.campushub.ui.component.PostCard
-import com.example.campushub.ui.component.ScaleInItem
 import com.example.campushub.ui.component.SkeletonPostCard
 import com.example.campushub.ui.component.pressScale
 import java.text.SimpleDateFormat
@@ -90,6 +87,8 @@ fun ProfileScreen(
     onLogoutSuccess: () -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
+    isFirstEnter: Boolean = true,
+    onEnterComplete: () -> Unit = {},
     viewModel: ProfileViewModel = viewModel()
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -102,6 +101,30 @@ fun ProfileScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
 
+    var showHeader by remember { mutableStateOf(false) }
+    var showStats by remember { mutableStateOf(false) }
+    var showTabs by remember { mutableStateOf(false) }
+    var showContent by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        viewModel.reloadFavorites()
+        if (isFirstEnter) {
+            showHeader = true
+            kotlinx.coroutines.delay(80)
+            showStats = true
+            kotlinx.coroutines.delay(80)
+            showTabs = true
+            kotlinx.coroutines.delay(80)
+            showContent = true
+            onEnterComplete()
+        } else {
+            showHeader = true
+            showStats = true
+            showTabs = true
+            showContent = true
+        }
+    }
+
     LaunchedEffect(viewModel.snackbarMessage) {
         viewModel.snackbarMessage?.let { message ->
             snackbarHostState.showSnackbar(message)
@@ -109,194 +132,215 @@ fun ProfileScreen(
         }
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = { Text("个人中心", fontWeight = FontWeight.SemiBold) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showChangePasswordDialog = true }) {
-                        Icon(
-                            Icons.Default.Lock,
-                            contentDescription = "修改密码",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    IconButton(onClick = { viewModel.logout(onLogoutSuccess) }) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ExitToApp,
-                            contentDescription = "退出登录",
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { paddingValues ->
+    Box(modifier = modifier.fillMaxSize()) {
         Column(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+            modifier = Modifier.fillMaxSize()
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(140.dp)
-                    .background(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(
-                                Color(0xFF2563EB),
-                                Color(0xFF7C3AED)
+            AnimatedVisibility(
+                visible = showHeader,
+                enter = slideInVertically(
+                    initialOffsetY = { it / 3 },
+                    animationSpec = tween(350)
+                ) + fadeIn(animationSpec = tween(350))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp)
+                        .background(
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(
+                                    Color(0xFF2563EB),
+                                    Color(0xFF7C3AED)
+                                )
                             )
                         )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    val painter = rememberVectorPainter(Icons.Default.AccountCircle)
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(viewModel.currentUser?.avatarUrl ?: "")
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = "头像",
-                        placeholder = painter,
-                        error = painter,
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.align(Alignment.Center)
+                    ) {
+                        val painter = rememberVectorPainter(Icons.Default.AccountCircle)
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(viewModel.currentUser?.avatarUrl ?: "")
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "头像",
+                            placeholder = painter,
+                            error = painter,
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(CircleShape)
+                                .border(3.dp, Color.White, CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = viewModel.currentUser?.nickname ?: "加载中...",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = viewModel.currentUser?.school ?: "",
+                            fontSize = 14.sp,
+                            color = Color.White.copy(alpha = 0.85f)
+                        )
+                    }
+                    Row(
                         modifier = Modifier
-                            .size(80.dp)
-                            .clip(CircleShape)
-                            .border(3.dp, Color.White, CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = viewModel.currentUser?.nickname ?: "加载中...",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Text(
-                        text = viewModel.currentUser?.school ?: "",
-                        fontSize = 14.sp,
-                        color = Color.White.copy(alpha = 0.85f)
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                StatItem(
-                    value = viewModel.totalLikes.toString(),
-                    label = "获赞",
-                    modifier = Modifier.weight(1f)
-                )
-                StatItem(
-                    value = viewModel.postCount.toString(),
-                    label = "帖子",
-                    modifier = Modifier.weight(1f)
-                )
-                StatItem(
-                    value = viewModel.favoriteCount.toString(),
-                    label = "收藏",
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            TabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = MaterialTheme.colorScheme.background,
-                contentColor = MaterialTheme.colorScheme.primary,
-                indicator = { tabPositions ->
-                    if (selectedTab < tabPositions.size) {
-                        TabRowDefaults.SecondaryIndicator(
-                            modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            ) {
-                tabs.forEachIndexed { index, title ->
-                    Tab(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        text = {
-                            Text(
-                                title,
-                                fontWeight = if (selectedTab == index)
-                                    FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (selectedTab == index)
-                                    MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant
+                            .align(Alignment.TopEnd)
+                            .padding(4.dp)
+                    ) {
+                        IconButton(onClick = { showChangePasswordDialog = true }) {
+                            Icon(
+                                Icons.Default.Lock,
+                                contentDescription = "修改密码",
+                                tint = Color.White.copy(alpha = 0.7f)
                             )
                         }
+                        IconButton(onClick = { viewModel.logout(onLogoutSuccess) }) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ExitToApp,
+                                contentDescription = "退出登录",
+                                tint = Color.White.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                }
+            }
+
+            AnimatedVisibility(
+                visible = showStats,
+                enter = slideInVertically(
+                    initialOffsetY = { it / 3 },
+                    animationSpec = tween(350)
+                ) + fadeIn(animationSpec = tween(350))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    StatItem(
+                        value = viewModel.totalLikes.toString(),
+                        label = "获赞",
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatItem(
+                        value = viewModel.postCount.toString(),
+                        label = "帖子",
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatItem(
+                        value = viewModel.favoriteCount.toString(),
+                        label = "收藏",
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
 
-            Box(modifier = Modifier.fillMaxSize()) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    AnimatedVisibility(
-                        visible = viewModel.isLoading && viewModel.myPosts.isEmpty(),
-                        enter = fadeIn(),
-                        exit = fadeOut()
-                    ) {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            items(4) { SkeletonPostCard() }
+            AnimatedVisibility(
+                visible = showTabs,
+                enter = slideInVertically(
+                    initialOffsetY = { it / 3 },
+                    animationSpec = tween(350)
+                ) + fadeIn(animationSpec = tween(350))
+            ) {
+                TabRow(
+                    selectedTabIndex = selectedTab,
+                    containerColor = MaterialTheme.colorScheme.background,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    indicator = { tabPositions ->
+                        if (selectedTab < tabPositions.size) {
+                            TabRowDefaults.SecondaryIndicator(
+                                modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                                color = MaterialTheme.colorScheme.primary
+                            )
                         }
                     }
-
-                    AnimatedVisibility(
-                        visible = !viewModel.isLoading || viewModel.myPosts.isNotEmpty(),
-                        enter = fadeIn()
-                    ) {
-                        val displayPosts =
-                            if (selectedTab == 0) viewModel.myPosts else viewModel.myFavorites
-
-                        if (displayPosts.isEmpty()) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
+                ) {
+                    tabs.forEachIndexed { index, title ->
+                        Tab(
+                            selected = selectedTab == index,
+                            onClick = { selectedTab = index },
+                            text = {
                                 Text(
-                                    text = "暂无内容",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    title,
+                                    fontWeight = if (selectedTab == index)
+                                        FontWeight.SemiBold else FontWeight.Normal,
+                                    color = if (selectedTab == index)
+                                        MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                        } else {
+                        )
+                    }
+                }
+            }
+
+            AnimatedVisibility(
+                visible = showContent,
+                enter = slideInVertically(
+                    initialOffsetY = { it / 3 },
+                    animationSpec = tween(350)
+                ) + fadeIn(animationSpec = tween(350)),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        AnimatedVisibility(
+                            visible = viewModel.isLoading && viewModel.myPosts.isEmpty(),
+                            enter = fadeIn(),
+                            exit = fadeOut()
+                        ) {
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = PaddingValues(16.dp),
                                 verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
-                                items(displayPosts, key = { it.id }) { post ->
-                                    if (selectedTab == 0) {
-                                        EditablePostCard(
-                                            post = post,
-                                            onEditClick = { showEditPostDialog = post },
-                                            onDeleteClick = { showDeleteConfirmDialog = post }
-                                        )
-                                    } else {
-                                        PostCard(
-                                            post = post,
-                                            onLikeClick = { }
-                                        )
+                                items(4) { SkeletonPostCard() }
+                            }
+                        }
+
+                        AnimatedVisibility(
+                            visible = !viewModel.isLoading || viewModel.myPosts.isNotEmpty(),
+                            enter = fadeIn()
+                        ) {
+                            val displayPosts =
+                                if (selectedTab == 0) viewModel.myPosts else viewModel.myFavorites
+
+                            if (displayPosts.isEmpty()) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "暂无内容",
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            } else {
+                                LazyColumn(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    items(displayPosts, key = { it.id }) { post ->
+                                        if (selectedTab == 0) {
+                                            EditablePostCard(
+                                                post = post,
+                                                onEditClick = { showEditPostDialog = post },
+                                                onDeleteClick = { showDeleteConfirmDialog = post }
+                                            )
+                                        } else {
+                                            PostCard(
+                                                post = post,
+                                                onLikeClick = { }
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -305,6 +349,13 @@ fun ProfileScreen(
                 }
             }
         }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp)
+        )
     }
 
     if (showEditProfileDialog) {

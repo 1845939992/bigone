@@ -14,6 +14,7 @@ import com.example.campushub.data.repository.impl.MockUserRepository
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class ProfileViewModel(
@@ -135,6 +136,15 @@ class ProfileViewModel(
 
     fun clearSnackbar() {
         snackbarMessage = null
+    }
+
+    fun reloadFavorites() {
+        viewModelScope.launch {
+            try {
+                myFavorites = postRepository.getFavoritePosts().first()
+            } catch (_: Exception) {
+            }
+        }
     }
 
     fun logout(onLogoutSuccess: () -> Unit) {
